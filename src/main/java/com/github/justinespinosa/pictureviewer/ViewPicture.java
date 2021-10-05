@@ -30,7 +30,7 @@ import static java.awt.image.BufferedImage.TYPE_INT_RGB;
 
 public class ViewPicture {
 
-    private static boolean VERBOSE = false;
+    public static boolean VERBOSE = false;
     private static Curses CURSES;
     private static Font BASEFONT;
     static {
@@ -38,20 +38,24 @@ public class ViewPicture {
             BASEFONT = Font.createFont(Font.TRUETYPE_FONT, ViewPicture.class.
                     getClassLoader().getResourceAsStream("AdobeArabic-Bold.otf"));
         }catch (Exception e){
+            System.out.println("Could not load font");
             throw new RuntimeException(e);
         }
     }
 
     private Bitmap bitmap;
-    private int prefix;
+    private int prefix = 0;
     private Resolution resolution;
     private ColorTable colorTable;
+    private ASCIIPicture picture;
 
     public ViewPicture(BufferedImage image, boolean useShape, double ppc, int numColors){
         bitmap = new Bitmap(image);
         bitmap.setUseShape(useShape);
         colorTable = ColorTable.forDepth(ColorDepth.forNumCols(numColors));
         resolution = new Resolution(ppc);
+        debug("Converting picture to ASCII...");
+        picture = bitmap.ASCIIDither(resolution, colorTable);
     }
 
     public void setPrefix(int prefix) {
@@ -69,23 +73,28 @@ public class ViewPicture {
         for(int i=0;i<prefix;++i){
             builder.append(' ');
         }
-        curses.print(builder.toString());
+        if(builder.length() > 0) {
+            curses.print(builder.toString());
+        }
+        debug("Padding for "+prefix);
     }
 
 
     public void display(Curses curses) throws IOException{
 
-        debug("Converting picture to ASCII...");
-        ASCIIPicture picture = bitmap.ASCIIDither(resolution, colorTable);
-        debug("Displaying picture...");
+        debug("Displaying picture: " +picture.size()+" char");
 
         pad(curses);
+        debug("Sending sc ");
+
         curses.sc();
         int line = 0;
         for(Position p : picture.size()){
+            debug("At position "+p);
 
             if(p.getLine()>line){
                 line = p.getLine();
+                debug("At line "+line);
                 curses.rc();
                 curses.print("\n");
                 pad(curses);
@@ -93,6 +102,9 @@ public class ViewPicture {
             }
 
             ColorChar c = picture.get(p);
+            debug("Color "+c.getColors());
+            debug("Chr <<"+c.getChr()+">>");
+
             curses.applyColorPair(c.getColors());
             curses.print(String.valueOf(c.getChr()));
         }
@@ -139,10 +151,10 @@ public class ViewPicture {
             imageGraphics.setColor(Color.BLUE);
             imageGraphics.fillRect(0,0,image.getWidth(),image.getHeight());
             withShadow(imageGraphics, get2alb(), Color.RED, Color.BLACK);
-            imageGraphics.setFont(BASEFONT.deriveFont( Font.BOLD, 60));
+            imageGraphics.setFont(BASEFONT.deriveFont( Font.BOLD, 120));
             imageGraphics.translate(8,0);
 
-            int lineHeight = imageGraphics.getFontMetrics().getHeight();
+            int lineHeight = imageGraphics.getFontMetrics().getHeight() - 50;
             String line;
             while( (line = reader.readLine())!=null){
                 imageGraphics.translate(0,lineHeight);

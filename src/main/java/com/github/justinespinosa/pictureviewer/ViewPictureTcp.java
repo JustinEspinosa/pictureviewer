@@ -28,27 +28,29 @@ public class ViewPictureTcp {
         try {
             Curses curses = factory.createCurses(factory.createTerminal("xterm", new GeneralSocketIO(client)));
             synchronized (viewPicture) {
+                System.out.println("Displaying image ");
                 viewPicture.display(curses);
+                System.out.println("Done displaying ");
             }
-        }catch (IOException e){
+        }catch (Exception e){
             e.printStackTrace();
         }
     }
 
     public void acceptConnections(int port) throws IOException {
+        System.out.println("Accepting connection son port "+port);
         ServerSocketChannel server = ServerSocketChannel.open();
         server.socket().bind(new InetSocketAddress(port));
 
         SocketChannel candidate;
         while((candidate = server.accept()) != null) {
             final SocketChannel client = candidate;
+            System.out.println("New connection ");
             CompletableFuture.runAsync(() -> handleOne(client));
         }
-
     }
 
     public static void main(String[] args) throws IOException {
-
         new ViewPictureTcp().acceptConnections(Integer.parseInt(args[0]));
     }
 
